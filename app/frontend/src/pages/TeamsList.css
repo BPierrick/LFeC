@@ -1,0 +1,34 @@
+.teams-list {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.teams-item {
+  padding: 0.75rem 1rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.teams-item-mine {
+  border-color: #6c5ce7;
+  background: #f5f3ff;
+  font-weight: 600;
+}
+
+.teams-badge {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: #6c5ce7;
+  color: white;
+  font-weight: 600;
+}
