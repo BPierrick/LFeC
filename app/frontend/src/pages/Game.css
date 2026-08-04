@@ -41,3 +41,108 @@
   color: #1a7f4e;
   font-weight: 600;
 }
+
+.game-reveal {
+  margin-top: 1.25rem;
+  font-weight: 600;
+}
+
+/* --- Section révélation (fin de round) --- */
+
+.game-reveal-section {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.game-reveal-answer {
+  text-align: center;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  background: #fef9e7;
+  border: 1px solid #f5e1a4;
+  width: 100%;
+  max-width: 420px;
+}
+
+.game-reveal-label {
+  margin: 0 0 0.5rem;
+  color: #7d6608;
+  font-weight: 600;
+}
+
+.game-reveal-song {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.game-reveal-mine {
+  font-weight: 600;
+  color: #555;
+}
+
+/* --- Tableau des scores --- */
+
+.game-scoreboard {
+  width: 100%;
+  max-width: 480px;
+  overflow-x: auto;
+}
+
+.game-scoreboard-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  text-align: center;
+}
+
+.scoreboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.scoreboard-table th {
+  padding: 0.6rem 0.5rem;
+  text-align: center;
+  border-bottom: 2px solid #ddd;
+  font-weight: 700;
+  color: #666;
+  white-space: nowrap;
+}
+
+.scoreboard-table td {
+  padding: 0.5rem 0.5rem;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+}
+
+.scoreboard-name {
+  text-align: left !important;
+  font-weight: 600;
+}
+
+.scoreboard-points {
+  font-weight: 700;
+}
+
+.scoreboard-rank {
+  font-weight: 700;
+  color: #888;
+}
+
+.scoreboard-check {
+  font-size: 1rem;
+}
+
+.scoreboard-row-mine {
+  background: #e8f4ff;
+}
+
+.scoreboard-row-mine td {
+  border-bottom-color: #c8dff5;
+}

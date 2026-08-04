@@ -28,6 +28,11 @@
   gap: 1rem;
 }
 
+.admin-song-rank {
+  color: #888;
+  font-weight: 600;
+}
+
 .admin-song-remove {
   border: none;
   background: none;
@@ -61,4 +66,97 @@
 .admin-start-button:disabled {
   background: #bbb;
   cursor: not-allowed;
+}
+
+/* --- Panneau de pilotage --- */
+
+.admin-control-panel {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-round-info {
+  text-align: center;
+  padding: 1rem 1.5rem;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  background: white;
+  width: 100%;
+  max-width: 420px;
+}
+
+.admin-round-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+}
+
+.admin-round-song {
+  margin: 0 0 0.5rem;
+  color: #333;
+}
+
+.admin-round-state {
+  margin: 0;
+  font-weight: 600;
+}
+
+.admin-round-state-playing {
+  color: #6c5ce7;
+}
+
+.admin-round-state-ended {
+  color: #27ae60;
+}
+
+.admin-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 320px;
+}
+
+.admin-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.admin-button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.admin-button:disabled {
+  background: #bbb !important;
+  cursor: not-allowed;
+}
+
+.admin-button-end {
+  background: #e67e22;
+}
+
+.admin-button-next {
+  background: #27ae60;
+}
+
+.admin-button-stop {
+  background: #c0392b;
+}
+
+.admin-button-reset {
+  background: #7f8c8d;
+}
+
+.admin-finished {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0;
 }

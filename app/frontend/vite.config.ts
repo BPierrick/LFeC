@@ -13,7 +13,7 @@ export default defineConfig({
     proxy: {
       // Toutes les requêtes /api sont redirigées vers le backend Express
       "/api": {
-        target: `http://localhost:5001,
+        target: "http://localhost:5000",
         changeOrigin: true,
       },
     },

@@ -2,7 +2,7 @@
  * Normalise une chaîne pour la comparaison :
  * minuscules, sans accents, sans ponctuation, espaces compactés.
  */
-export function normalize(str: string): string {
+export function normalize(str) {
   return str
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
@@ -13,13 +13,13 @@ export function normalize(str: string): string {
 }
 
 /** Distance de Levenshtein classique (nombre d'éditions pour passer de a à b). */
-function levenshtein(a: string, b: string): number {
+function levenshtein(a, b) {
   const m = a.length;
   const n = b.length;
   if (m === 0) return n;
   if (n === 0) return m;
 
-  const dp: number[] = new Array(n + 1);
+  const dp = new Array(n + 1);
   for (let j = 0; j <= n; j++) dp[j] = j;
 
   for (let i = 1; i <= m; i++) {
@@ -38,7 +38,7 @@ function levenshtein(a: string, b: string): number {
 }
 
 /** Score de similarité entre 0 (rien à voir) et 1 (identique), après normalisation. */
-export function similarity(a: string, b: string): number {
+export function similarity(a, b) {
   const normA = normalize(a);
   const normB = normalize(b);
   if (!normA || !normB) return 0;
@@ -49,18 +49,14 @@ export function similarity(a: string, b: string): number {
   return 1 - distance / maxLen;
 }
 
-// Tolérance "moyennement permissive" : quelques fautes de frappe ou mots
-// manquants passent, mais une réponse trop éloignée est rejetée.
 const MATCH_THRESHOLD = 0.72;
 
 /** Vrai si `guess` est une réponse acceptable pour `target` (titre ou artiste). */
-export function isFuzzyMatch(guess: string, target: string): boolean {
+export function isFuzzyMatch(guess, target) {
   const normGuess = normalize(guess);
   const normTarget = normalize(target);
   if (!normGuess || !normTarget) return false;
 
-  // Accepte les réponses partielles significatives (ex: juste le titre
-  // principal d'une chanson au nom composé).
   if (normGuess.length >= 3 && normTarget.includes(normGuess)) return true;
 
   return similarity(guess, target) >= MATCH_THRESHOLD;
