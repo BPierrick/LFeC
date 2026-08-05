@@ -1,8 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@shared": fileURLToPath(new URL("../shared", import.meta.url)),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   server: {
     port: 5173,
     // Évite un 403 "Blocked request" si tu accèdes au dev server via une URL
@@ -13,7 +20,7 @@ export default defineConfig({
     proxy: {
       // Toutes les requêtes /api sont redirigées vers le backend Express
       "/api": {
-        target: "http://localhost:5000",
+        target: "http://localhost:5001",
         changeOrigin: true,
       },
     },

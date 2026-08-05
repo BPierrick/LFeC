@@ -1,103 +1,27 @@
 import { useEffect, useRef, useState } from "react";
+import type { FoundField } from "@shared/types";
+import { useGameStatus } from "../hooks/useGameStatus";
+import { useTeam } from "../hooks/useTeam";
+import { submitGuess } from "../api/endpoints";
+import { ProgressBar } from "../components/ProgressBar";
+import { ScoreboardTable } from "../components/ScoreboardTable";
 import "./Landing.css";
 import "./Game.css";
 
-interface Song {
-  id: string;
-  title: string;
-  artist: string;
-  revealed: boolean;
-}
-
-interface ScoreboardEntry {
-  teamId: string;
-  name: string;
-  foundTitle: boolean;
-  foundArtist: boolean;
-  roundPoints: number;
-  totalPoints: number;
-}
-
-interface GameStatusResponse {
-  game: {
-    status: "idle" | "started" | "finished";
-    currentSongIndex: number;
-    roundStartedAt: string | null;
-    roundStatus: "playing" | "ended";
-  };
-  songsCount: number;
-  currentSong: Song | null;
-  roundDurationMs: number;
-  scoreboard?: ScoreboardEntry[];
-  myRoundResult?: { foundTitle: boolean; foundArtist: boolean } | null;
-}
-
-type FoundField = "title" | "artist" | "both";
-
 function Game() {
-  const [status, setStatus] = useState<GameStatusResponse | null>(null);
+  const { status, loading, connectionLost } = useGameStatus(1000);
+  const { teamId } = useTeam();
   const [guess, setGuess] = useState("");
   const [found, setFound] = useState<FoundField | null>(null);
   const [percentLeft, setPercentLeft] = useState(100);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const roundStartedAtRef = useRef<number | null>(null);
   const lastIndexRef = useRef<number>(-1);
   const guessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Polling régulier de l'état de la partie pour suivre les transitions
-  // de round (changement de chanson), la fin de round (révélation) et
-  // la fin de partie.
-  useEffect(() => {
-    let cancelled = false;
-
-    const poll = async () => {
-      try {
-        const [statusRes, teamRes] = await Promise.all([
-          fetch("/api/game/status", { credentials: "include" }),
-          fetch("/api/team", { credentials: "include" }),
-        ]);
-
-        if (statusRes.ok) {
-          const data: GameStatusResponse = await statusRes.json();
-          if (!cancelled) {
-            setStatus(data);
-            setError(null);
-          }
-        }
-
-        if (teamRes.ok) {
-          const teamData = await teamRes.json();
-          if (!cancelled && teamData?.team?.id) {
-            setMyTeamId(teamData.team.id);
-          }
-        }
-      } catch {
-        // on ignore les erreurs de polling ponctuelles
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    poll();
-    const interval = setInterval(poll, 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
-
-  // Réagit aux changements d'état détectés par le polling.
+  // Nouveau round détecté : réinitialise l'interface locale
   useEffect(() => {
     if (!status) return;
-
-    // Fin de partie
     if (status.game.status === "finished") return;
-
-    // Nouveau round détecté : on réinitialise l'interface locale
     if (status.game.currentSongIndex !== lastIndexRef.current) {
       lastIndexRef.current = status.game.currentSongIndex;
       setGuess("");
@@ -109,17 +33,16 @@ function Game() {
     }
   }, [status]);
 
-  // Synchronise `found` avec `myRoundResult` du serveur (fiable même après reload)
+  // Synchronise `found` avec `myRoundResult` du serveur (fiable après reload)
   useEffect(() => {
-    if (!status?.myRoundResult) return;
-    const { foundTitle, foundArtist } = status.myRoundResult;
-    if (foundTitle && foundArtist) setFound("both");
-    else if (foundTitle) setFound("title");
-    else if (foundArtist) setFound("artist");
+    const r = status?.myRoundResult;
+    if (!r) return;
+    if (r.foundTitle && r.foundArtist) setFound("both");
+    else if (r.foundTitle) setFound("title");
+    else if (r.foundArtist) setFound("artist");
   }, [status?.myRoundResult]);
 
-  // Barre de progression basée sur l'heure de démarrage du round
-  // (synchronisée côté serveur pour rester cohérente entre les équipes).
+  // Barre de progression synchronisée côté serveur
   useEffect(() => {
     if (!status || status.game.status !== "started") return;
     if (status.game.roundStatus === "ended") {
@@ -131,8 +54,7 @@ function Game() {
       if (roundStartedAtRef.current === null) return;
       const elapsed = Date.now() - roundStartedAtRef.current;
       const duration = status.roundDurationMs;
-      const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
-      setPercentLeft(remaining);
+      setPercentLeft(Math.max(0, 100 - (elapsed / duration) * 100));
     };
 
     tick();
@@ -140,16 +62,11 @@ function Game() {
     return () => clearInterval(interval);
   }, [status]);
 
-  // Envoie le guess au serveur (avec debounce) pour validation. Le client
-  // ne reçoit jamais la réponse, seulement ce qui a été reconnu.
   const handleGuessChange = (value: string) => {
     setGuess(value);
-
     if (guessTimerRef.current) clearTimeout(guessTimerRef.current);
 
-    if (!status || status.game.status !== "started" || status.game.roundStatus === "ended") {
-      return;
-    }
+    if (!status || status.game.status !== "started" || status.game.roundStatus === "ended") return;
 
     const trimmed = value.trim();
     if (!trimmed) {
@@ -159,26 +76,12 @@ function Game() {
 
     guessTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch("/api/game/round/guess", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ guess: trimmed }),
-        });
-        if (!res.ok) return;
-        const data: { foundTitle: boolean; foundArtist: boolean } = await res.json();
-
-        const hasTitle = data.foundTitle;
-        const hasArtist = data.foundArtist;
-
-        if (hasTitle || hasArtist) {
-          setGuess("");
-        }
-
+        const data = await submitGuess(trimmed);
+        if (data.foundTitle || data.foundArtist) setGuess("");
         setFound(() => {
-          if (hasTitle && hasArtist) return "both";
-          if (hasTitle) return "title";
-          if (hasArtist) return "artist";
+          if (data.foundTitle && data.foundArtist) return "both";
+          if (data.foundTitle) return "title";
+          if (data.foundArtist) return "artist";
           return null;
         });
       } catch {
@@ -198,7 +101,15 @@ function Game() {
   if (!status) {
     return (
       <main className="landing">
-        <p className="team-error">{error ?? "Impossible de charger la partie."}</p>
+        <p className="team-error">Impossible de charger la partie.</p>
+      </main>
+    );
+  }
+
+  if (connectionLost) {
+    return (
+      <main className="landing">
+        <p className="team-error">Connexion au serveur perdue...</p>
       </main>
     );
   }
@@ -212,30 +123,7 @@ function Game() {
         <p className="landing-subtitle">Merci d'avoir joué !</p>
 
         {scoreboard.length > 0 && (
-          <div className="game-scoreboard">
-            <h2 className="game-scoreboard-title">Classement final</h2>
-            <table className="scoreboard-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Équipe</th>
-                  <th>Points</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scoreboard.map((entry, index) => (
-                  <tr
-                    key={entry.teamId}
-                    className={entry.teamId === myTeamId ? "scoreboard-row-mine" : ""}
-                  >
-                    <td className="scoreboard-rank">{index + 1}</td>
-                    <td className="scoreboard-name">{entry.name}</td>
-                    <td className="scoreboard-points">{entry.totalPoints}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ScoreboardTable entries={scoreboard} myTeamId={teamId} mode="final" caption="Classement final" />
         )}
       </main>
     );
@@ -265,12 +153,7 @@ function Game() {
         Round {roundNumber} / {status.songsCount}
       </p>
 
-      <div className="game-progress-track">
-        <div
-          className={`game-progress-fill${roundEnded ? " game-progress-empty" : ""}`}
-          style={{ width: `${percentLeft}%` }}
-        />
-      </div>
+      <ProgressBar percentLeft={percentLeft} empty={roundEnded} />
 
       <input
         type="text"
@@ -280,6 +163,7 @@ function Game() {
         disabled={found === "both" || roundEnded}
         onChange={(e) => handleGuessChange(e.target.value)}
         autoFocus
+        aria-label="Ta réponse"
       />
 
       {found && !roundEnded && (
@@ -314,38 +198,7 @@ function Game() {
           </div>
 
           {scoreboard.length > 0 && (
-            <div className="game-scoreboard">
-              <h2 className="game-scoreboard-title">Scores</h2>
-              <table className="scoreboard-table">
-                <thead>
-                  <tr>
-                    <th>Équipe</th>
-                    <th>Titre</th>
-                    <th>Artiste</th>
-                    <th>Pts round</th>
-                    <th>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {scoreboard.map((entry) => (
-                    <tr
-                      key={entry.teamId}
-                      className={entry.teamId === myTeamId ? "scoreboard-row-mine" : ""}
-                    >
-                      <td className="scoreboard-name">{entry.name}</td>
-                      <td className="scoreboard-check">
-                        {entry.foundTitle ? "✅" : "❌"}
-                      </td>
-                      <td className="scoreboard-check">
-                        {entry.foundArtist ? "✅" : "❌"}
-                      </td>
-                      <td className="scoreboard-points">{entry.roundPoints}</td>
-                      <td className="scoreboard-points">{entry.totalPoints}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ScoreboardTable entries={scoreboard} myTeamId={teamId} mode="round" caption="Scores" />
           )}
         </div>
       )}

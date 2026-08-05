@@ -1,5 +1,7 @@
 import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { registerTeam } from "../api/endpoints";
+import { TextInput } from "../components/TextInput";
 import "./Landing.css";
 
 const SUGGESTIONS = [
@@ -26,25 +28,10 @@ function Landing() {
     setSubmitting(true);
 
     try {
-      const res = await fetch("/api/team", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name: trimmed }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error ?? "Erreur lors de l'enregistrement.");
-      }
-
+      await registerTeam(trimmed);
       navigate("/equipes");
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Impossible de contacter le serveur."
-      );
+      setError(err instanceof Error ? err.message : "Impossible de contacter le serveur.");
     } finally {
       setSubmitting(false);
     }
@@ -63,7 +50,9 @@ function Landing() {
       </p>
 
       <form className="team-form" onSubmit={handleSubmit}>
-        <input
+        <TextInput
+          id="team-name"
+          label="Nom de ton équipe"
           type="text"
           placeholder="Nom de ton équipe"
           value={teamName}
@@ -72,7 +61,6 @@ function Landing() {
             setTeamName(e.target.value);
             if (error) setError(null);
           }}
-          className="team-input"
         />
         <button type="submit" className="team-submit" disabled={submitting}>
           {submitting ? "..." : "Valider"}

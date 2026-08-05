@@ -1,81 +1,117 @@
-# Mon App — React (Vite) + Express
+# La flûte en chantier
 
-Structure du projet :
+Blind test musical multijoueur pour une soirée entre amis. Un admin configure
+la liste des chansons et pilote le déroulé des rounds ; les équipes rejoignent
+depuis leur téléphone et devinent le titre et/ou l'artiste.
+
+## Stack
+
+- **Frontend** : React 18 + Vite + TypeScript, react-router-dom
+- **Backend** : Express 4 + TypeScript (exécuté via `tsx`), sessions cookie
+- **Types partagés** : `app/shared/types.ts` (importé via l'alias `@shared/*`)
+- **Tests** : Vitest (backend)
+
+## Structure
 
 ```
-mon-app/
-├── backend/     → API Node.js/Express
-└── frontend/    → Application React (Vite)
+app/
+├── shared/                 # types partagés frontend/backend
+│   └── types.ts
+├── backend/                # API Express (TypeScript)
+│   └── src/
+│       ├── routes/         # health, team, song, game, admin
+│       ├── services/       # game.service, scoring.service
+│       ├── store/          # memoryStore (in-memory, interface Store)
+│       ├── middleware/     # adminAuth, errorHandler
+│       ├── utils/          # fuzzyMatch
+│       └── tests/          # fuzzyMatch, scoring
+└── frontend/              # SPA React
+    └── src/
+        ├── api/           # client + endpoints typés
+        ├── hooks/         # useGameStatus, usePolling, useTeam
+        ├── context/       # AuthContext
+        ├── components/    # ScoreboardTable, ProgressBar, Button...
+        └── pages/         # Landing, TeamsList, Admin, Game
 ```
 
-## Pourquoi ce stack ?
+## Déroulé d'une partie
 
-- **React + Vite + TypeScript** : démarrage quasi instantané, HMR très rapide, typage statique pour éviter les erreurs courantes.
-- **React Router** : gestion du routage front (landing page, page d'équipe...).
-- **Node.js + Express** : reste en JavaScript côté serveur (même langage que le front), écosystème énorme, parfait pour une API REST simple à faire évoluer.
-- Le frontend est déjà configuré avec un **proxy Vite** vers `/api`, donc pas de souci de CORS en développement.
+1. Les équipes s'enregistrent sur `/` puis attendent sur `/equipes`.
+2. L'admin se connecte sur `/admin` (mot de passe `ADMIN_PASSWORD`), configure
+   les chansons et lance la partie.
+3. Les équipes sont redirigées vers `/jeu`. À chaque round, l'admin révèle la
+   chanson courante, termine le round (ou attends la fin du minuteur 60s),
+   puis passe au suivant. Les chansons sont parcourues **dans l'ordre** de la liste.
+4. À la fin de chaque round, la réponse est révélée et un tableau des scores
+   s'affiche (titre ✓/✗, artiste ✓/✗, points du round, total).
+5. La partie se termine après la dernière chanson (ou arrêt manuel) ; le
+   classement final s'affiche.
 
-## Pages actuelles
+## Scoring
 
-- `/` — Landing page « La flûte en chantier » : l'utilisateur choisit un nom d'équipe
-  (saisie libre ou suggestion). Le nom est envoyé au backend puis l'utilisateur est
-  redirigé vers `/equipes`.
-- `/equipes` — Liste de toutes les équipes enregistrées, avec la sienne mise en avant.
-  Vérifie automatiquement (toutes les 2s) si la partie a été lancée, et redirige
-  alors vers `/jeu`.
-- `/admin` — Configuration de la liste des chansons (titre/artiste) et lancement
-  de la partie.
-- `/jeu` — Page de jeu (blind test), pour l'instant un simple placeholder.
+Par round, les équipes sont classées par ordre de complétion :
 
-## Persistance par session
+- **Titre ET artiste trouvés** : 7 pts (1re), 6 pts (2e), 5 pts (les autres)
+- **Titre OU artiste trouvé** : 3 pts (1re), 2 pts (2e), 1 pt (les autres)
+- **Rien trouvé** : 0 pt
 
-Chaque visiteur reçoit un **cookie de session** (`flute.sid`) posé par le backend
-(`express-session`). Ce cookie permet d'associer une équipe à un utilisateur sans
-compte ni mot de passe :
+Le temps de complétion = instant où le 2e champ est trouvé (catégorie "both")
+ou l'unique champ trouvé (catégorie "one").
 
-- `POST /api/team` — enregistre (ou met à jour) le nom d'équipe de la session courante.
-- `GET /api/team` — renvoie l'équipe de la session courante (ou `null`).
-- `GET /api/teams` — renvoie la liste de toutes les équipes enregistrées.
-- `GET /api/songs` / `POST /api/songs` / `DELETE /api/songs/:id` — gestion de la
-  liste de chansons par l'admin.
-- `GET /api/game/status` — état courant de la partie (`idle` ou `started`), interrogé
-  en polling par `/equipes`.
-- `POST /api/game/start` — lance la partie (refusé si la liste de chansons est vide).
-- `POST /api/game/reset` — remet la partie à `idle` (pratique en développement pour
-  retester sans redémarrer le serveur).
+## Authentification admin
 
-⚠️ Les équipes et les chansons sont actuellement stockées **en mémoire** côté serveur :
-elles sont perdues à chaque redémarrage du backend, et ne sont pas partagées entre
-plusieurs instances du serveur. Pour une vraie mise en production, il faudra :
-- persister les données dans une base de données (SQLite, PostgreSQL, MongoDB...) ;
-- utiliser un store de session persistant (ex. Redis) au lieu du store mémoire par défaut.
+L'admin se connecte avec un mot de passe unique (`ADMIN_PASSWORD` dans `.env`).
+La session admin (`req.session.isAdmin`) protège les mutations de chansons et
+les actions de pilotage de la partie.
 
-⚠️ La page `/admin` n'est **pas protégée par une authentification** pour l'instant :
-n'importe qui connaissant l'URL peut y accéder et lancer la partie. À ajouter avant
-tout déploiement public (mot de passe simple, ou un vrai système d'auth).
+## Endpoints API
 
-## Aller plus loin : temps réel avec WebSocket
+| Méthode | Route | Description |
+|---|---|---|
+| GET | `/api/health` | Health check |
+| POST/GET | `/api/team` | Enregistre/lit l'équipe de la session |
+| GET | `/api/teams` | Liste toutes les équipes |
+| GET/POST/DELETE | `/api/songs` | CRUD chansons (mutations admin) |
+| GET | `/api/game/status` | État complet de la partie (polling) |
+| GET | `/api/game/current-song` | Chanson courante (masquée si round en cours) |
+| POST | `/api/game/start` | Lance la partie (admin) |
+| POST | `/api/game/round/end` | Termine le round courant (admin) |
+| POST | `/api/game/round/next` | Round suivant ou fin de partie (admin) |
+| POST | `/api/game/round/guess` | Valide un guess (anti-triche, ne révèle pas) |
+| POST | `/api/game/stop` | Arrêt anticipé (admin) |
+| POST | `/api/game/reset` | Remet à zéro (admin) |
+| POST | `/api/admin/login` `/logout` | Connexion/déconnexion admin |
+| GET | `/api/admin/session` | État de session admin |
 
-La détection du lancement de partie sur `/equipes` fonctionne par **polling**
-(vérification toutes les 2 secondes). C'est simple et suffisant pour un petit groupe,
-mais ça ajoute jusqu'à 2s de latence et un peu de trafic réseau inutile. Si besoin
-d'un lancement instantané pour tout le monde, on peut migrer vers `socket.io`
-(serveur + client) pour pousser l'événement `game:started` en temps réel.
+## Anti-triche
+
+La chanson courante n'est jamais envoyée au client pendant un round :
+`/api/game/current-song` et `/api/game/status` masquent le titre/artiste tant
+que `roundStatus === "playing"`. La validation des guesses se fait côté serveur
+(`POST /api/game/round/guess`), qui ne renvoie que les booléens `foundTitle` /
+`foundArtist`.
+
+## Persistance
+
+⚠️ Les données (équipes, chansons, scores) sont stockées **en mémoire** côté
+serveur : perdues au redémarrage, non partagées entre instances. Le store est
+exposé derrière une interface (`src/store/memoryStore.ts`) pour un futur
+remplacement par une base de données.
 
 ## Installation
 
-Dans deux terminaux séparés :
+Dans deux terminaux :
 
 ### 1. Backend
 
 ```bash
 cd backend
 npm install
-cp .env.example .env
+cp .env.example .env   # renseigner SESSION_SECRET et ADMIN_PASSWORD
 npm run dev
 ```
 
-→ démarre sur `http://localhost:5000`
+→ démarre sur `http://localhost:5001`
 
 ### 2. Frontend
 
@@ -85,17 +121,20 @@ npm install
 npm run dev
 ```
 
-→ démarre sur `http://localhost:5173`
+→ démarre sur `http://localhost:5173` (proxy `/api` → backend:5001)
 
-Ouvre `http://localhost:5173` : la page React appelle `/api/hello` sur le backend
-et affiche la réponse — ça confirme que les deux briques communiquent bien.
+## Scripts
 
-## Étapes suivantes possibles
+| | Backend | Frontend |
+|---|---|---|
+| Dev | `npm run dev` (tsx watch) | `npm run dev` (vite) |
+| Build/Typecheck | `npm run build` (tsc --noEmit) | `npm run build` (tsc + vite) |
+| Start (prod) | `npm start` (tsx) | servir `dist/` |
+| Tests | `npm test` (vitest) | — |
 
-- Ajouter une base de données (PostgreSQL, MongoDB…) côté backend.
-- Ajouter un routeur front (`react-router-dom`).
-- Ajouter TypeScript.
-- Dockeriser les deux services.
+## Limitations connues
 
-Dis-moi ce que ton app doit faire concrètement (type de données, authentification,
-besoin ou non de base de données...) et je peux adapter l'architecture en conséquence.
+- Pas de WebSocket : la synchro se fait par polling (~1s).
+- Pas de base de données : tout est en mémoire.
+- Pas de lecture audio : les joueurs devinent via un champ texte.
+- Auth admin par mot de passe unique (suffisant pour une soirée).

@@ -2,7 +2,7 @@
  * Normalise une chaîne pour la comparaison :
  * minuscules, sans accents, sans ponctuation, espaces compactés.
  */
-export function normalize(str) {
+export function normalize(str: string): string {
   return str
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
@@ -13,13 +13,13 @@ export function normalize(str) {
 }
 
 /** Distance de Levenshtein classique (nombre d'éditions pour passer de a à b). */
-function levenshtein(a, b) {
+function levenshtein(a: string, b: string): number {
   const m = a.length;
   const n = b.length;
   if (m === 0) return n;
   if (n === 0) return m;
 
-  const dp = new Array(n + 1);
+  const dp: number[] = new Array(n + 1);
   for (let j = 0; j <= n; j++) dp[j] = j;
 
   for (let i = 1; i <= m; i++) {
@@ -38,7 +38,7 @@ function levenshtein(a, b) {
 }
 
 /** Score de similarité entre 0 (rien à voir) et 1 (identique), après normalisation. */
-export function similarity(a, b) {
+export function similarity(a: string, b: string): number {
   const normA = normalize(a);
   const normB = normalize(b);
   if (!normA || !normB) return 0;
@@ -52,7 +52,7 @@ export function similarity(a, b) {
 const MATCH_THRESHOLD = 0.72;
 
 /** Vrai si `guess` est une réponse acceptable pour `target` (titre ou artiste). */
-export function isFuzzyMatch(guess, target) {
+export function isFuzzyMatch(guess: string, target: string): boolean {
   const normGuess = normalize(guess);
   const normTarget = normalize(target);
   if (!normGuess || !normTarget) return false;

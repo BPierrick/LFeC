@@ -9,11 +9,11 @@
 .landing-title {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
-  color: #1a1a1a;
+  color: var(--color-text);
 }
 
 .landing-subtitle {
-  color: #666;
+  color: var(--color-muted);
   margin-bottom: 2rem;
 }
 
@@ -28,32 +28,27 @@
   flex: 1;
   max-width: 320px;
   padding: 0.75rem 1rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   font-size: 1rem;
-}
-
-.team-input:focus {
-  outline: none;
-  border-color: #6c5ce7;
 }
 
 .team-submit {
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 8px;
-  background: #6c5ce7;
+  background: var(--color-primary);
   color: white;
   font-weight: 600;
   cursor: pointer;
 }
 
 .team-submit:hover {
-  background: #5a4bd1;
+  background: var(--color-primary-dark);
 }
 
 .team-error {
-  color: #c0392b;
+  color: var(--color-danger);
   margin-bottom: 1rem;
 }
 
@@ -76,7 +71,7 @@
 
 .suggestion-chip {
   padding: 0.5rem 1rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 999px;
   background: white;
   cursor: pointer;
@@ -84,6 +79,6 @@
 }
 
 .suggestion-chip:hover {
-  border-color: #6c5ce7;
-  color: #6c5ce7;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }

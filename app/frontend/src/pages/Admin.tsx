@@ -1,59 +1,77 @@
 import { useEffect, useState, FormEvent } from "react";
+import type { Song } from "@shared/types";
+import { useAuth } from "../context/AuthContext";
+import {
+  addSong,
+  getSongs,
+  removeSong,
+  startGame,
+  endRound,
+  nextRound,
+  stopGame,
+  resetGame,
+} from "../api/endpoints";
+import { useGameStatus } from "../hooks/useGameStatus";
+import { TextInput } from "../components/TextInput";
+import { Button } from "../components/Button";
+import { ErrorBanner } from "../components/ErrorBanner";
 import "./Landing.css";
 import "./Admin.css";
 
-interface Song {
-  id: string;
-  title: string;
-  artist: string;
-}
+function AdminLogin() {
+  const { login, error } = useAuth();
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-interface GameStatusResponse {
-  game: {
-    status: "idle" | "started" | "finished";
-    currentSongIndex: number;
-    roundStartedAt: string | null;
-    roundStatus: "playing" | "ended";
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSubmitting(true);
+    await login(password);
+    setSubmitting(false);
   };
-  songsCount: number;
+
+  return (
+    <main className="landing admin">
+      <h1 className="landing-title">Administration</h1>
+      <p className="landing-subtitle">Connecte-toi pour piloter la partie.</p>
+
+      <form className="team-form" onSubmit={handleSubmit}>
+        <TextInput
+          id="admin-password"
+          label="Mot de passe admin"
+          type="password"
+          placeholder="Mot de passe"
+          value={password}
+          disabled={submitting}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button type="submit" className="team-submit" disabled={submitting}>
+          {submitting ? "..." : "Se connecter"}
+        </button>
+      </form>
+
+      {error && <ErrorBanner message={error} />}
+    </main>
+  );
 }
 
 function Admin() {
+  const { isAuthed, checking, logout } = useAuth();
   const [songs, setSongs] = useState<Song[]>([]);
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [starting, setStarting] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [status, setStatus] = useState<GameStatusResponse | null>(null);
+  const { status, refresh } = useGameStatus(1000);
 
-  // Charge la liste des chansons configurées
   useEffect(() => {
-    fetch("/api/songs", { credentials: "include" })
-      .then((res) => res.json())
+    if (!isAuthed) return;
+    getSongs()
       .then((data) => setSongs(data.songs))
       .catch(() => setError("Impossible de charger la liste des chansons."))
       .finally(() => setLoading(false));
-  }, []);
-
-  // Polling de l'état de la partie pour piloter l'affichage des commandes
-  useEffect(() => {
-    const poll = async () => {
-      try {
-        const res = await fetch("/api/game/status", { credentials: "include" });
-        if (!res.ok) return;
-        const data: GameStatusResponse = await res.json();
-        setStatus(data);
-      } catch {
-        // on ignore les erreurs ponctuelles
-      }
-    };
-
-    poll();
-    const interval = setInterval(poll, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [isAuthed]);
 
   const handleAddSong = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -66,73 +84,49 @@ function Admin() {
     }
 
     setError(null);
-
     try {
-      const res = await fetch("/api/songs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ title: trimmedTitle, artist: trimmedArtist }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error ?? "Erreur lors de l'ajout.");
-      }
-
-      const data = await res.json();
+      const data = await addSong(trimmedTitle, trimmedArtist);
       setSongs((prev) => [...prev, data.song]);
       setTitle("");
       setArtist("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inattendue.");
+      setError(err instanceof Error ? err.message : "Erreur lors de l'ajout.");
     }
   };
 
   const handleDeleteSong = async (id: string) => {
     try {
-      const res = await fetch(`/api/songs/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok && res.status !== 204) throw new Error();
+      await removeSong(id);
       setSongs((prev) => prev.filter((s) => s.id !== id));
     } catch {
       setError("Impossible de supprimer cette chanson.");
     }
   };
 
-  const callGameAction = async (action: string, endpoint: string) => {
+  const callAction = async (action: string, fn: () => Promise<unknown>) => {
     setActionLoading(action);
     setError(null);
-
     try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error ?? "Action impossible.");
-      }
-
-      // Rafraîchit immédiatement l'état local
-      const data = await res.json();
-      if (data?.game) {
-        setStatus((prev) => prev ? { ...prev, game: data.game } : prev);
-      }
+      await fn();
+      refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inattendue.");
+      setError(err instanceof Error ? err.message : "Action impossible.");
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleStartGame = () => {
-    setStarting(true);
-    callGameAction("start", "/api/game/start").finally(() => setStarting(false));
-  };
+  if (checking) {
+    return (
+      <main className="landing admin">
+        <p>Vérification de la session...</p>
+      </main>
+    );
+  }
+
+  if (!isAuthed) {
+    return <AdminLogin />;
+  }
 
   const gameStatus = status?.game.status ?? "idle";
   const roundStatus = status?.game.roundStatus ?? "playing";
@@ -147,29 +141,35 @@ function Admin() {
         Configure la liste des chansons puis pilote le déroulé de la partie.
       </p>
 
+      <button type="button" className="admin-logout" onClick={() => void logout()}>
+        Déconnexion
+      </button>
+
       {gameStatus === "idle" && (
         <>
           <form className="admin-form" onSubmit={handleAddSong}>
-            <input
+            <TextInput
+              id="song-title"
+              label="Titre"
               type="text"
               placeholder="Titre"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="team-input"
             />
-            <input
+            <TextInput
+              id="song-artist"
+              label="Artiste"
               type="text"
               placeholder="Artiste"
               value={artist}
               onChange={(e) => setArtist(e.target.value)}
-              className="team-input"
             />
             <button type="submit" className="team-submit">
               Ajouter
             </button>
           </form>
 
-          {error && <p className="team-error">{error}</p>}
+          {error && <ErrorBanner message={error} />}
 
           {loading ? (
             <p>Chargement...</p>
@@ -195,14 +195,13 @@ function Admin() {
             </ul>
           )}
 
-          <button
-            type="button"
-            className="admin-start-button"
-            disabled={songs.length === 0 || starting || actionLoading !== null}
-            onClick={handleStartGame}
+          <Button
+            variant="primary"
+            disabled={songs.length === 0 || actionLoading !== null}
+            onClick={() => callAction("start", startGame)}
           >
-            {starting ? "Lancement..." : "Lancer la partie"}
-          </button>
+            {actionLoading === "start" ? "Lancement..." : "Lancer la partie"}
+          </Button>
         </>
       )}
 
@@ -222,52 +221,28 @@ function Admin() {
             </p>
           </div>
 
-          {error && <p className="team-error">{error}</p>}
+          {error && <ErrorBanner message={error} />}
 
           <div className="admin-controls">
             {roundStatus === "playing" && (
-              <button
-                type="button"
-                className="admin-button admin-button-end"
-                disabled={actionLoading !== null}
-                onClick={() => callGameAction("end", "/api/game/round/end")}
-              >
+              <Button variant="end" disabled={actionLoading !== null} onClick={() => callAction("end", endRound)}>
                 {actionLoading === "end" ? "..." : "Terminer le round"}
-              </button>
+              </Button>
             )}
 
             {roundStatus === "ended" && (
-              <button
-                type="button"
-                className="admin-button admin-button-next"
-                disabled={actionLoading !== null}
-                onClick={() => callGameAction("next", "/api/game/round/next")}
-              >
-                {actionLoading === "next"
-                  ? "..."
-                  : isLastRound
-                  ? "Terminer la partie"
-                  : "Round suivant"}
-              </button>
+              <Button variant="next" disabled={actionLoading !== null} onClick={() => callAction("next", nextRound)}>
+                {actionLoading === "next" ? "..." : isLastRound ? "Terminer la partie" : "Round suivant"}
+              </Button>
             )}
 
-            <button
-              type="button"
-              className="admin-button admin-button-stop"
-              disabled={actionLoading !== null}
-              onClick={() => callGameAction("stop", "/api/game/stop")}
-            >
+            <Button variant="stop" disabled={actionLoading !== null} onClick={() => callAction("stop", stopGame)}>
               {actionLoading === "stop" ? "..." : "Terminer la partie"}
-            </button>
+            </Button>
 
-            <button
-              type="button"
-              className="admin-button admin-button-reset"
-              disabled={actionLoading !== null}
-              onClick={() => callGameAction("reset", "/api/game/reset")}
-            >
+            <Button variant="reset" disabled={actionLoading !== null} onClick={() => callAction("reset", resetGame)}>
               {actionLoading === "reset" ? "..." : "Réinitialiser"}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -275,15 +250,10 @@ function Admin() {
       {gameStatus === "finished" && (
         <div className="admin-control-panel">
           <p className="admin-finished">🏆 Partie terminée</p>
-          {error && <p className="team-error">{error}</p>}
-          <button
-            type="button"
-            className="admin-button admin-button-reset"
-            disabled={actionLoading !== null}
-            onClick={() => callGameAction("reset", "/api/game/reset")}
-          >
+          {error && <ErrorBanner message={error} />}
+          <Button variant="reset" disabled={actionLoading !== null} onClick={() => callAction("reset", resetGame)}>
             {actionLoading === "reset" ? "..." : "Réinitialiser pour reconfigurer"}
-          </button>
+          </Button>
         </div>
       )}
     </main>

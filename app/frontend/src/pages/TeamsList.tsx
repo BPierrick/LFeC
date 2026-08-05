@@ -1,33 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import type { Team } from "@shared/types";
+import { getTeams, getTeam } from "../api/endpoints";
+import { useGameStatus } from "../hooks/useGameStatus";
 import "./Landing.css";
 import "./TeamsList.css";
-
-interface Team {
-  id: string;
-  name: string;
-  createdAt: string;
-}
 
 function TeamsList() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [myTeam, setMyTeam] = useState<Team | null>(null);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const navigate = useNavigate();
+  const { status: game } = useGameStatus(2000);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [teamsRes, meRes] = await Promise.all([
-          fetch("/api/teams", { credentials: "include" }),
-          fetch("/api/team", { credentials: "include" }),
+        const [teamsData, meData] = await Promise.all([
+          getTeams(),
+          getTeam(),
         ]);
-
-        if (!teamsRes.ok || !meRes.ok) throw new Error("Erreur réseau");
-
-        const teamsData = await teamsRes.json();
-        const meData = await meRes.json();
-
         setTeams(teamsData.teams);
         setMyTeam(meData.team);
         setStatus("ok");
@@ -35,29 +27,13 @@ function TeamsList() {
         setStatus("error");
       }
     };
-
     load();
   }, []);
 
-  // Vérifie régulièrement si l'administrateur a lancé la partie, et
-  // redirige automatiquement tout le monde vers la page de jeu.
+  // Redirige vers le jeu dès que la partie démarre
   useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch("/api/game/status", { credentials: "include" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.game?.status === "started") {
-          clearInterval(interval);
-          navigate("/jeu");
-        }
-      } catch {
-        // on ignore les erreurs de polling ponctuelles, on retentera au prochain tick
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [navigate]);
+    if (game?.game.status === "started") navigate("/jeu");
+  }, [game, navigate]);
 
   return (
     <main className="landing">
@@ -71,23 +47,19 @@ function TeamsList() {
 
       {status === "loading" && <p>Chargement des équipes...</p>}
       {status === "error" && (
-        <p className="team-error">
-          Impossible de charger la liste des équipes.
-        </p>
+        <p className="team-error">Impossible de charger la liste des équipes.</p>
       )}
 
       {status === "ok" && (
-        <ul className="teams-list">
+        <ul className="teams-list" aria-label="Liste des équipes">
           {teams.length === 0 && <li>Aucune équipe pour le moment.</li>}
           {teams.map((team) => (
             <li
               key={team.id}
-              className={
-                myTeam?.id === team.id ? "teams-item teams-item-mine" : "teams-item"
-              }
+              className={myTeam?.id === team.id ? "teams-item teams-item-mine" : "teams-item"}
             >
               {team.name}
-              {myTeam?.id === team.id && <span className="teams-badge">toi</span>}
+              {myTeam?.id === team.id && <span className="teams-badge" aria-hidden="true">toi</span>}
             </li>
           ))}
         </ul>
