@@ -15,12 +15,10 @@ interface RankedEntry {
   teamId: string;
   name: string;
   category: "both" | "one" | "none";
-  completionTime: number;
-  foundTitle: boolean;
-  foundArtist: boolean;
+  foundTitleAt: string | null;
+  foundArtistAt: string | null;
 }
 
-const BOTH_POINTS = [7, 6, 5];
 const ONE_POINTS = [3, 2, 1];
 
 /**
@@ -31,34 +29,25 @@ const ONE_POINTS = [3, 2, 1];
 export function computeRoundScoring(input: ScoringInput): ScoringOutput {
   const ranked: RankedEntry[] = input.teams.map((team) => {
     const r = input.roundResults[team.id] || { foundTitleAt: null, foundArtistAt: null };
-    const foundTitle = !!r.foundTitleAt;
-    const foundArtist = !!r.foundArtistAt;
 
     let category: "both" | "one" | "none" = "none";
-    let completionTime = Infinity;
+    const { foundTitleAt, foundArtistAt } = r;
 
-    if (foundTitle && foundArtist) {
+    if (foundTitleAt && foundArtistAt) {
       category = "both";
-      completionTime = Math.max(
-        new Date(r.foundTitleAt!).getTime(),
-        new Date(r.foundArtistAt!).getTime()
-      );
-    } else if (foundTitle || foundArtist) {
+    } else if (foundTitleAt || foundArtistAt) {
       category = "one";
-      completionTime = new Date(
-        (foundTitle ? r.foundTitleAt : r.foundArtistAt)!
-      ).getTime();
     }
-
-    return { teamId: team.id, name: team.name, category, completionTime, foundTitle, foundArtist };
+    return { teamId: team.id, name: team.name, category, foundTitleAt, foundArtistAt };
   });
 
-  const bothRanked = ranked
-    .filter((e) => e.category === "both")
-    .sort((a, b) => a.completionTime - b.completionTime);
-  const oneRanked = ranked
-    .filter((e) => e.category === "one")
-    .sort((a, b) => a.completionTime - b.completionTime);
+
+  const titleRanked = ranked
+    .filter((e) => e.foundTitleAt !== null)
+    .sort((a, b) => new Date(a.foundTitleAt!).getTime() - new Date(b.foundTitleAt!).getTime());
+  const artistRanked = ranked
+    .filter((e) => e.foundArtistAt !== null)
+    .sort((a, b) => new Date(a.foundArtistAt!).getTime() - new Date(b.foundArtistAt!).getTime());
 
   const roundPointsByTeamId: Record<string, number> = {};
   // Toutes les équipes commencent à 0 point pour ce round
@@ -66,12 +55,12 @@ export function computeRoundScoring(input: ScoringInput): ScoringOutput {
     roundPointsByTeamId[team.id] = 0;
   }
 
-  bothRanked.forEach((entry, index) => {
-    roundPointsByTeamId[entry.teamId] = BOTH_POINTS[Math.min(index, BOTH_POINTS.length - 1)];
+  titleRanked.forEach((entry, index) => {
+    roundPointsByTeamId[entry.teamId] += ONE_POINTS[Math.min(index, ONE_POINTS.length - 1)];
   });
 
-  oneRanked.forEach((entry, index) => {
-    roundPointsByTeamId[entry.teamId] = ONE_POINTS[Math.min(index, ONE_POINTS.length - 1)];
+  artistRanked.forEach((entry, index) => {
+    roundPointsByTeamId[entry.teamId] += ONE_POINTS[Math.min(index, ONE_POINTS.length - 1)];
   });
 
   // Le breakdown sera ordonné par total (calculé par l'appelant), on renvoie
@@ -81,8 +70,8 @@ export function computeRoundScoring(input: ScoringInput): ScoringOutput {
     breakdown: ranked.map((entry) => ({
       teamId: entry.teamId,
       name: entry.name,
-      foundTitle: entry.foundTitle,
-      foundArtist: entry.foundArtist,
+      foundTitle: !!entry.foundTitleAt,
+      foundArtist: !!entry.foundArtistAt,
       roundPoints: roundPointsByTeamId[entry.teamId] || 0,
       totalPoints: 0,
     })),

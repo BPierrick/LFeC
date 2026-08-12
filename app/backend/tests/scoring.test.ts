@@ -26,23 +26,23 @@ describe("computeRoundScoring", () => {
     expect(out.roundPointsByTeamId.a).toBe(0);
   });
 
-  it("donne 7 points à la 1re équipe 'both'", () => {
+  it("donne 6 points à la 1re équipe 'both'", () => {
     const teams = [makeTeam("a")];
     const out = computeRoundScoring({ teams, roundResults: { a: result(T0, T1) } });
-    expect(out.roundPointsByTeamId.a).toBe(7);
+    expect(out.roundPointsByTeamId.a).toBe(6);
   });
 
-  it("both : 1er=7, 2e=6, autres=5 (tri par temps de complétion)", () => {
+  it("both : 1er=5, 2e=5, autres=2 (tri par temps de complétion)", () => {
     const teams = [makeTeam("a"), makeTeam("b"), makeTeam("c")];
     const roundResults = {
-      a: result(T0, T2), // complétion à T2
-      b: result(T0, T1), // complétion à T1 -> 1er
-      c: result(T0, T3), // complétion à T3
+      a: result(T0, T1), // complétion à T0 et T1
+      b: result(T1, T0), // complétion croisée à T1 et T0
+      c: result(T2, T2), // complétion à T2
     };
     const out = computeRoundScoring({ teams, roundResults });
-    expect(out.roundPointsByTeamId.b).toBe(7);
-    expect(out.roundPointsByTeamId.a).toBe(6);
-    expect(out.roundPointsByTeamId.c).toBe(5);
+    expect(out.roundPointsByTeamId.b).toBe(5);
+    expect(out.roundPointsByTeamId.a).toBe(5);
+    expect(out.roundPointsByTeamId.c).toBe(2);
   });
 
   it("one : 1er=3, 2e=2, autres=1", () => {
@@ -64,12 +64,12 @@ describe("computeRoundScoring", () => {
     const teams = [makeTeam("both1"), makeTeam("one1"), makeTeam("none")];
     const roundResults = {
       both1: result(T0, T1),
-      one1: result(T0, null),
+      one1: result(T1, null),
       none: result(null, null),
     };
     const out = computeRoundScoring({ teams, roundResults });
-    expect(out.roundPointsByTeamId.both1).toBe(7);
-    expect(out.roundPointsByTeamId.one1).toBe(3);
+    expect(out.roundPointsByTeamId.both1).toBe(6);
+    expect(out.roundPointsByTeamId.one1).toBe(2);
     expect(out.roundPointsByTeamId.none).toBe(0);
   });
 
