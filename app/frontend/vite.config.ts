@@ -20,7 +20,7 @@ export default defineConfig({
     proxy: {
       // Toutes les requêtes /api sont redirigées vers le backend Express
       "/api": {
-        target: "http://localhost:5001",
+        target: "https://lfec-production.up.railway.app:5001",
         changeOrigin: true,
       },
     },
