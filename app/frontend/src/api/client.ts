@@ -17,14 +17,20 @@ async function parseError(res: Response): Promise<string> {
   }
 }
 
+const resolveApiURL = (url: string) => {
+  const apiUrl = import.meta.env.API_URL || "http://localhost";
+  const apiPort = import.meta.env.API_PORT || "5173";
+  return `${apiUrl}:${apiPort}${url}`;
+}
+
 export async function apiGet<T>(url: string): Promise<T> {
-  const res = await fetch(url, { credentials: "include" });
+  const res = await fetch(resolveApiURL(url), { credentials: "include" });
   if (!res.ok) throw new ApiError(await parseError(res), res.status);
   return res.json() as Promise<T>;
 }
 
 export async function apiPost<T>(url: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
+  const res = await fetch(resolveApiURL(url), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -35,7 +41,7 @@ export async function apiPost<T>(url: string, body?: unknown): Promise<T> {
 }
 
 export async function apiPostVoid(url: string, body?: unknown): Promise<void> {
-  const res = await fetch(url, {
+  const res = await fetch(resolveApiURL(url), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -45,6 +51,6 @@ export async function apiPostVoid(url: string, body?: unknown): Promise<void> {
 }
 
 export async function apiDelete(url: string): Promise<void> {
-  const res = await fetch(url, { method: "DELETE", credentials: "include" });
+  const res = await fetch(resolveApiURL(url), { method: "DELETE", credentials: "include" });
   if (!res.ok && res.status !== 204) throw new ApiError(await parseError(res), res.status);
 }
