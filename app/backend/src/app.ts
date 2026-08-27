@@ -13,13 +13,6 @@ export function createApp(): express.Application {
   const app = express();
 
   app.use(
-    cors({
-      origin: config.frontendUrl,
-      credentials: true,
-    })
-  );
-  app.use(express.json());
-  app.use(
     session({
       name: "flute.sid",
       secret: config.sessionSecret,
@@ -27,12 +20,21 @@ export function createApp(): express.Application {
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: config.isProduction ? "none" : "lax",
         secure: config.isProduction,
         maxAge: 1000 * 60 * 60 * 24 * 7,
+        domain: process.env.NODE_ENV === "production" ? ".vercel.app" : undefined, // 👈 Important !
       },
     })
   );
+
+  app.use(
+    cors({
+      origin: config.frontendUrl,
+      credentials: true,
+    })
+  );
+  app.use(express.json());
 
   app.use("/api", healthRoutes);
   app.use("/api", teamRoutes);
