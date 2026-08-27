@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: parseInt(env.API_PORT) || 5173,
+      port: parseInt(env.VITE_API_PORT) || 5173,
       // Évite un 403 "Blocked request" si tu accèdes au dev server via une URL
       // différente de localhost (IP locale, domaine de prévisualisation, tunnel...).
       // À restreindre à une liste précise de domaines en environnement partagé,
@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // Toutes les requêtes /api sont redirigées vers le backend Express
         "/api": {
-          target: env.API_URL || "http://localhost:5001",
+          target: env.VITE_API_URL || "http://localhost:5001",
           changeOrigin: true,
         },
       },

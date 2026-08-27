@@ -18,9 +18,8 @@ async function parseError(res: Response): Promise<string> {
 }
 
 const resolveApiURL = (url: string) => {
-  const apiUrl = import.meta.env.API_URL || "http://localhost";
-  const apiPort = import.meta.env.API_PORT || "5173";
-  return `${apiUrl}:${apiPort}${url}`;
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5173";
+  return `${apiUrl}${url}`;
 }
 
 export async function apiGet<T>(url: string): Promise<T> {
