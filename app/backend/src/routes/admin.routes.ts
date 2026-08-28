@@ -3,7 +3,7 @@ import { config } from "../config";
 
 const router = Router();
 
-router.post("/admin/login", (req, res) => {
+router.post("/admin/login", async (req, res) => {
   const password = (req.body?.password ?? "").toString();
 
   if (!password) {

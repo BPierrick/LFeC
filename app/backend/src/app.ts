@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import pg from 'pg';
+
 import { config } from "./config";
 import healthRoutes from "./routes/health.routes";
 import teamRoutes from "./routes/team.routes";
@@ -10,20 +13,26 @@ import adminRoutes from "./routes/admin.routes";
 import { notFound, errorHandler } from "./middleware/errorHandler";
 
 export function createApp(): express.Application {
-  const app = express();
 
+  const PgSession = connectPgSimple(session);
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+
+  const app = express();
+  app.use(express.json());
+  app.set("trust proxy", 1);
   app.use(
     session({
+      store: config.isProduction ? new PgSession({ pool, tableName: 'session', createTableIfMissing: true }) : undefined,
       name: "flute.sid",
       secret: config.sessionSecret,
       resave: false,
       saveUninitialized: false,
       cookie: {
+        secure: config.isProduction,
         httpOnly: true,
         sameSite: config.isProduction ? "none" : "lax",
-        secure: config.isProduction,
+        // domain: "l-fe-c.vercel.app", // 👈 Important !
         maxAge: 1000 * 60 * 60 * 24 * 7,
-        domain: process.env.NODE_ENV === "production" ? ".vercel.app" : undefined, // 👈 Important !
       },
     })
   );
@@ -32,9 +41,10 @@ export function createApp(): express.Application {
     cors({
       origin: config.frontendUrl,
       credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE',],
+      allowedHeaders: ['Content-Type', 'Authorization']
     })
   );
-  app.use(express.json());
 
   app.use("/api", healthRoutes);
   app.use("/api", teamRoutes);
