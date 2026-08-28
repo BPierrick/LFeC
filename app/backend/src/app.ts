@@ -30,7 +30,7 @@ export function createApp(): express.Application {
       cookie: {
         secure: config.isProduction,
         httpOnly: true,
-        sameSite: config.isProduction ? "none" : "lax",
+        sameSite: "lax",
         // domain: "l-fe-c.vercel.app", // 👈 Important !
         maxAge: 1000 * 60 * 60 * 24 * 7,
       },

@@ -18,7 +18,7 @@ async function parseError(res: Response): Promise<string> {
 }
 
 const resolveApiURL = (url: string) => {
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5173";
+  const apiUrl = import.meta.env.VITE_API_URL ?? "";
   return `${apiUrl}${url}`;
 }
 
