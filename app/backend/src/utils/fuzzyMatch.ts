@@ -12,6 +12,30 @@ export function normalize(str: string): string {
     .trim();
 }
 
+/** Vérifie si le guess contient le target. */
+export function guessContainsTarget(guess: string, target: string): boolean {
+  const normGuess = normalize(guess);
+  const normTarget = normalize(target);
+  if (!normGuess || !normTarget) return false;
+  if (normTarget.length < 3) return false;
+
+  // Cas exact d'abord (fast path)
+  if (normGuess.includes(normTarget)) return true;
+
+  // Recherche floue : fenêtre glissante de taille variable autour de la taille du target
+  const tolerance = Math.floor((1 - MATCH_THRESHOLD) * normTarget.length) + 1;
+  const minWindow = Math.max(3, normTarget.length - tolerance);
+  const maxWindow = normTarget.length + tolerance;
+
+  for (let windowLen = minWindow; windowLen <= maxWindow; windowLen++) {
+    for (let i = 0; i + windowLen <= normGuess.length; windowLen++) {
+      const window = normGuess.slice(i, i + windowLen);
+      if (similarity(window, normTarget) >= MATCH_THRESHOLD) return true;
+    }
+  }
+  return false;
+}
+
 /** Distance de Levenshtein classique (nombre d'éditions pour passer de a à b). */
 function levenshtein(a: string, b: string): number {
   const m = a.length;

@@ -14,7 +14,7 @@ import {
   stopGame,
 } from "../services/game.service";
 import { adminAuth } from "../middleware/adminAuth";
-import { isFuzzyMatch } from "../utils/fuzzyMatch";
+import { guessContainsTarget, isFuzzyMatch } from "../utils/fuzzyMatch";
 
 const router = Router();
 
@@ -118,12 +118,22 @@ router.post("/game/round/guess", (req, res) => {
   }
   const result = store.roundResults[teamId];
 
-  if (!result.foundTitleAt && isFuzzyMatch(guess, song.title)) {
-    result.foundTitleAt = now;
-  }
-  if (!result.foundArtistAt && isFuzzyMatch(guess, song.artist)) {
-    result.foundArtistAt = now;
-  }
+  // 1. Combined : le guess contient titre ET artiste en même temps
+if (!result.foundTitleAt && !result.foundArtistAt &&
+    guessContainsTarget(guess, song.title) && guessContainsTarget(guess, song.artist)) {
+  result.foundTitleAt = now;
+  result.foundArtistAt = now;
+}
+// 2. Titre seul (exact, fuzzy, ou contenu dans le guess)
+if (!result.foundTitleAt &&
+    (isFuzzyMatch(guess, song.title) || guessContainsTarget(guess, song.title))) {
+  result.foundTitleAt = now;
+}
+// 3. Artiste seul (exact, fuzzy, ou contenu dans le guess)
+if (!result.foundArtistAt &&
+    (isFuzzyMatch(guess, song.artist) || guessContainsTarget(guess, song.artist))) {
+  result.foundArtistAt = now;
+}
 
   res.json({
     foundTitle: !!result.foundTitleAt,
