@@ -13,15 +13,18 @@ function Game() {
   const { teamId } = useTeam();
   const [guess, setGuess] = useState("");
   const [found, setFound] = useState<FoundField | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [percentLeft, setPercentLeft] = useState(100);
   const roundStartedAtRef = useRef<number | null>(null);
   const lastIndexRef = useRef<number>(-1);
-  const guessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Nouveau round détecté : réinitialise l'interface locale
   useEffect(() => {
     if (!status) return;
-    if (status.game.status === "finished") return;
+    if (status.game.status === "finished") {
+      lastIndexRef.current = -1;
+      return;
+    }
     if (status.game.currentSongIndex !== lastIndexRef.current) {
       lastIndexRef.current = status.game.currentSongIndex;
       setGuess("");
@@ -62,33 +65,32 @@ function Game() {
     return () => clearInterval(interval);
   }, [status]);
 
-  const handleGuessChange = (value: string) => {
-    setGuess(value);
-    if (guessTimerRef.current) clearTimeout(guessTimerRef.current);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    if (!status || status.game.status !== "started" || status.game.roundStatus === "ended") return;
-
-    const trimmed = value.trim();
+    const trimmed = guess.trim();
     if (!trimmed) {
       setFound(null);
       return;
     }
+    setSubmitting(true);
 
-    guessTimerRef.current = setTimeout(async () => {
-      try {
-        const data = await submitGuess(trimmed);
-        if (data.foundTitle || data.foundArtist) setGuess("");
-        setFound(() => {
-          if (data.foundTitle && data.foundArtist) return "both";
-          if (data.foundTitle) return "title";
-          if (data.foundArtist) return "artist";
-          return null;
-        });
-      } catch {
-        // on ignore les erreurs ponctuelles de validation
-      }
-    }, 300);
-  };
+    try {
+      const data = await submitGuess(trimmed);
+      if (data.foundTitle || data.foundArtist) setGuess("");
+      setFound(() => {
+        if (data.foundTitle && data.foundArtist) return "both";
+        if (data.foundTitle) return "title";
+        if (data.foundArtist) return "artist";
+        return null;
+      });
+    } catch {
+      // on ignore les erreurs ponctuelles de validation
+    }
+    finally {
+      setSubmitting(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -154,17 +156,21 @@ function Game() {
       </p>
 
       <ProgressBar percentLeft={percentLeft} empty={roundEnded} />
-
-      <input
-        type="text"
-        className="team-input game-guess-input"
-        placeholder="Titre et/ou artiste..."
-        value={guess}
-        disabled={found === "both" || roundEnded}
-        onChange={(e) => handleGuessChange(e.target.value)}
-        autoFocus
-        aria-label="Ta réponse"
-      />
+      <form className="team-form" onSubmit={handleSubmit}>
+        <input
+          type="text"
+          className="team-input game-guess-input"
+          placeholder="Titre et/ou artiste..."
+          value={guess}
+          disabled={found === "both" || roundEnded}
+          onChange={(e) => setGuess(e.target.value)}
+          autoFocus
+          aria-label="Ta réponse"
+        />
+        <button type="submit" className="team-submit" disabled={submitting}>
+          {submitting ? "..." : "Valider"}
+        </button>
+      </form>
 
       {found && !roundEnded && (
         <p className="game-found">
