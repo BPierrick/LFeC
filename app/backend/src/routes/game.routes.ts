@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { store } from "../store/memoryStore";
 import {
-  applyAutoRoundEnd,
+  // applyAutoRoundEnd,
   buildScoreboard,
   currentSongForClient,
   endRound,
@@ -19,7 +19,7 @@ import { guessContainsTarget, isFuzzyMatch } from "../utils/fuzzyMatch";
 const router = Router();
 
 router.get("/game/status", (req, res) => {
-  applyAutoRoundEnd();
+  // applyAutoRoundEnd();
 
   const base = {
     game: store.game,
@@ -41,7 +41,7 @@ router.get("/game/status", (req, res) => {
 });
 
 router.get("/game/current-song", (_req, res) => {
-  applyAutoRoundEnd();
+  // applyAutoRoundEnd();
   const song = currentSongForClient();
   if (!song) {
     res.status(404).json({ error: "Aucune chanson n'est configurée." });
@@ -87,7 +87,7 @@ router.post("/game/stop", adminAuth, (_req, res) => {
 });
 
 router.post("/game/round/guess", (req, res) => {
-  applyAutoRoundEnd();
+  // applyAutoRoundEnd();
 
   if (store.game.status !== "started") {
     res.status(400).json({ error: "Aucune partie en cours." });
