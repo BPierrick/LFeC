@@ -12,6 +12,11 @@ export const registerTeam = (name: string) =>
 export const getSongs = () => apiGet<{ songs: Song[] }>("/api/songs");
 export const addSong = (title: string, artist: string) =>
   apiPost<{ song: Song }>("/api/songs", { title, artist });
+export const importSongs = (songs: { title: string; artist: string }[]) =>
+  apiPost<{ imported: number; skipped: number; skippedDetails: unknown[]; songs: Song[] }>(
+    "/api/songs/import",
+    { songs }
+  );
 export const removeSong = (id: string) => apiDelete(`/api/songs/${id}`);
 
 // --- Partie ---

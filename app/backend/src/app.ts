@@ -18,7 +18,7 @@ export function createApp(): express.Application {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: "1mb" }));
   app.set("trust proxy", 1);
   app.use(
     session({

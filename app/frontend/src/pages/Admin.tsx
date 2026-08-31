@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent, ChangeEvent } from "react";
 import type { Song } from "@shared/types";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -11,6 +11,7 @@ import {
   stopGame,
   resetGame,
   removeTeam,
+  importSongs,
 } from "../api/endpoints";
 import { useGameStatus } from "../hooks/useGameStatus";
 import { TextInput } from "../components/TextInput";
@@ -66,7 +67,9 @@ function Admin() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { status, refresh } = useGameStatus(1000);
-  const {teams, refresh: refreshTeams} = useTeams();
+  const { teams, refresh: refreshTeams } = useTeams();
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
 
 
 
@@ -105,6 +108,45 @@ function Admin() {
       setSongs((prev) => prev.filter((s) => s.id !== id));
     } catch {
       setError("Impossible de supprimer cette chanson.");
+    }
+  };
+
+  const handleImportFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportError(null);
+    setImportResult(null);
+
+    // Validation extension
+    if (!file.name.endsWith(".json")) {
+      setImportError("Le fichier doit être au format JSON (.json).");
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+
+      // Normaliser : tableau ou { songs: [...] }
+      const songsArray = Array.isArray(parsed) ? parsed : parsed?.songs;
+      if (!Array.isArray(songsArray) || songsArray.length === 0) {
+        setImportError("Format invalide : tableau de chansons attendu.");
+        return;
+      }
+
+      // Normaliser les clés (title/titre, artist/artiste)
+      const songs = songsArray.map((s: Record<string, unknown>) => ({
+        title: String(s.title ?? s.titre ?? "").trim(),
+        artist: String(s.artist ?? s.artiste ?? "").trim(),
+      }));
+
+      const data = await importSongs(songs);
+      setSongs((prev) => [...prev, ...data.songs]);
+      setImportResult({ imported: data.imported, skipped: data.skipped });
+      e.target.value = ""; // reset input
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Import impossible.");
     }
   };
 
@@ -162,25 +204,45 @@ function Admin() {
       {gameStatus === "idle" && (
         <>
           <form className="admin-form" onSubmit={handleAddSong}>
-            <TextInput
-              id="song-title"
-              label="Titre"
-              type="text"
-              placeholder="Titre"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <TextInput
-              id="song-artist"
-              label="Artiste"
-              type="text"
-              placeholder="Artiste"
-              value={artist}
-              onChange={(e) => setArtist(e.target.value)}
-            />
+            <div>
+              <TextInput
+                id="song-title"
+                label="Titre"
+                type="text"
+                placeholder="Titre"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <TextInput
+                id="song-artist"
+                label="Artiste"
+                type="text"
+                placeholder="Artiste"
+                value={artist}
+                onChange={(e) => setArtist(e.target.value)}
+              />
+            </div>
             <button type="submit" className="team-submit">
               Ajouter
             </button>
+            <div className="admin-import">
+              <label className="admin-import-button">
+                Importer un fichier JSON
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  hidden
+                  onChange={(e) => void handleImportFile(e)}
+                />
+              </label>
+              {importError && <ErrorBanner message={importError} />}
+              {importResult && (
+                <p className="admin-import-result">
+                  ✅ {importResult.imported} chanson(s) importée(s).
+                  {importResult.skipped > 0 && ` ${importResult.skipped} ignorée(s).`}
+                </p>
+              )}
+            </div>
           </form>
 
           {error && <ErrorBanner message={error} />}
@@ -188,48 +250,54 @@ function Admin() {
           {loading ? (
             <p>Chargement...</p>
           ) : (
-            <ul className="admin-songs">
-              {songs.length === 0 && <li>Aucune chanson pour le moment.</li>}
-              {songs.map((song, index) => (
-                <li key={song.id} className="admin-song-item">
-                  <span>
-                    <span className="admin-song-rank">{index + 1}.</span>{" "}
-                    <strong>{song.title}</strong> — {song.artist}
-                  </span>
-                  <button
-                    type="button"
-                    className="admin-song-remove"
-                    onClick={() => handleDeleteSong(song.id)}
-                    aria-label={`Supprimer ${song.title}`}
-                  >
-                    ✕
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              <h2 className="admin-section-title">Chansons</h2>
+              <ul className="admin-songs">
+                {songs.length === 0 && <li>Aucune chanson pour le moment.</li>}
+                {songs.map((song, index) => (
+                  <li key={song.id} className="admin-song-item">
+                    <span>
+                      <span className="admin-song-rank">{index + 1}.</span>{" "}
+                      <strong>{song.title}</strong> — {song.artist}
+                    </span>
+                    <button
+                      type="button"
+                      className="admin-song-remove"
+                      onClick={() => handleDeleteSong(song.id)}
+                      aria-label={`Supprimer ${song.title}`}
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
 
           {loading ? (
             <p>Chargement...</p>
           ) : (
-            <ul className="teams">
-              {teams.length === 0 && <li>Aucune équipe pour le moment.</li>}
-              {teams.map((team) => (
-                <li key={team.id} className="team-item">
-                  <span>
-                    <strong>{team.name}</strong>
-                  </span>
-                  <button
-                    type="button"
-                    className="team-remove"
-                    onClick={() => handleDeleteTeam(team.id)}
-                    aria-label={`Supprimer ${team.name}`}
-                  >
-                    ✕
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              <h2 className="admin-section-title">Équipes</h2>
+              <ul className="teams">
+                {teams.length === 0 && <li>Aucune équipe pour le moment.</li>}
+                {teams.map((team) => (
+                  <li key={team.id} className="team-item">
+                    <span>
+                      <strong>{team.name}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      className="team-remove"
+                      onClick={() => handleDeleteTeam(team.id)}
+                      aria-label={`Supprimer ${team.name}`}
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
 
           <Button

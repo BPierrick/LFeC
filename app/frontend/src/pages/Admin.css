@@ -1,6 +1,8 @@
 .admin-form {
   flex-direction: column;
   align-items: center;
+  display: flex;
+  gap: 1.5rem;
 }
 
 .admin-form .team-input {
@@ -8,7 +10,8 @@
   width: 100%;
 }
 
-.admin-songs, .teams {
+.admin-songs,
+.teams {
   list-style: none;
   padding: 0;
   margin: 1.5rem 0;
@@ -17,7 +20,8 @@
   gap: 0.5rem;
 }
 
-.admin-song-item, .team-item {
+.admin-song-item,
+.team-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -28,12 +32,14 @@
   gap: 1rem;
 }
 
-.admin-song-rank, .team-rank {
+.admin-song-rank,
+.team-rank {
   color: #888;
   font-weight: 600;
 }
 
-.admin-song-remove, .team-remove {
+.admin-song-remove,
+.team-remove {
   border: none;
   background: none;
   color: #c0392b;
@@ -43,7 +49,8 @@
   padding: 0.25rem;
 }
 
-.admin-song-remove:hover, .team-remove:hover {
+.admin-song-remove:hover,
+.team-remove:hover {
   color: #922b21;
 }
 
@@ -66,6 +73,16 @@
 .admin-start-button:disabled {
   background: #bbb;
   cursor: not-allowed;
+}
+
+.admin-import-button {
+  padding: .75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* --- Panneau de pilotage --- */
