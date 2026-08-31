@@ -10,6 +10,7 @@ import {
   nextRound,
   stopGame,
   resetGame,
+  removeTeam,
 } from "../api/endpoints";
 import { useGameStatus } from "../hooks/useGameStatus";
 import { TextInput } from "../components/TextInput";
@@ -17,6 +18,7 @@ import { Button } from "../components/Button";
 import { ErrorBanner } from "../components/ErrorBanner";
 import "./Landing.css";
 import "./Admin.css";
+import { useTeams } from "@/hooks/useTeams";
 
 function AdminLogin() {
   const { login, error } = useAuth();
@@ -64,6 +66,9 @@ function Admin() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { status, refresh } = useGameStatus(1000);
+  const {teams, refresh: refreshTeams} = useTeams();
+
+
 
   useEffect(() => {
     if (!isAuthed) return;
@@ -100,6 +105,15 @@ function Admin() {
       setSongs((prev) => prev.filter((s) => s.id !== id));
     } catch {
       setError("Impossible de supprimer cette chanson.");
+    }
+  };
+
+  const handleDeleteTeam = async (id: string) => {
+    try {
+      await removeTeam(id);
+      refreshTeams();
+    } catch {
+      setError("Impossible de supprimer cette équipe.");
     }
   };
 
@@ -187,6 +201,29 @@ function Admin() {
                     className="admin-song-remove"
                     onClick={() => handleDeleteSong(song.id)}
                     aria-label={`Supprimer ${song.title}`}
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {loading ? (
+            <p>Chargement...</p>
+          ) : (
+            <ul className="teams">
+              {teams.length === 0 && <li>Aucune équipe pour le moment.</li>}
+              {teams.map((team) => (
+                <li key={team.id} className="team-item">
+                  <span>
+                    <strong>{team.name}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    className="team-remove"
+                    onClick={() => handleDeleteTeam(team.id)}
+                    aria-label={`Supprimer ${team.name}`}
                   >
                     ✕
                   </button>

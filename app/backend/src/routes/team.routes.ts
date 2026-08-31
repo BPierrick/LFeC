@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { store } from "../store/memoryStore";
+import { adminAuth } from "@/middleware/adminAuth";
 
 const router = Router();
 
@@ -37,6 +38,16 @@ router.get("/team", (req, res) => {
 router.get("/teams", (_req, res) => {
   const sorted = [...store.teams].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   res.json({ teams: sorted });
+});
+
+router.delete("/teams/:id", adminAuth, (req, res) => {
+  const index = store.teams.findIndex((t) => t.id === req.params.id);
+  if (index === -1) {
+    res.status(404).json({ error: "Équipe introuvable." });
+    return;
+  }
+  store.teams.splice(index, 1);
+  res.status(204).end();
 });
 
 export default router;

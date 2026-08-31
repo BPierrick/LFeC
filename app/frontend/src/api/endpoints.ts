@@ -4,6 +4,7 @@ import { apiGet, apiPost, apiDelete } from "./client";
 // --- Équipes ---
 export const getTeam = () => apiGet<{ team: Team | null }>("/api/team");
 export const getTeams = () => apiGet<{ teams: Team[] }>("/api/teams");
+export const removeTeam = (id: string) => apiDelete(`/api/teams/${id}`);
 export const registerTeam = (name: string) =>
   apiPost<{ team: Team }>("/api/team", { name });
 

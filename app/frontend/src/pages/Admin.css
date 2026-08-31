@@ -8,7 +8,7 @@
   width: 100%;
 }
 
-.admin-songs {
+.admin-songs, .teams {
   list-style: none;
   padding: 0;
   margin: 1.5rem 0;
@@ -17,7 +17,7 @@
   gap: 0.5rem;
 }
 
-.admin-song-item {
+.admin-song-item, .team-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -28,12 +28,12 @@
   gap: 1rem;
 }
 
-.admin-song-rank {
+.admin-song-rank, .team-rank {
   color: #888;
   font-weight: 600;
 }
 
-.admin-song-remove {
+.admin-song-remove, .team-remove {
   border: none;
   background: none;
   color: #c0392b;
@@ -43,7 +43,7 @@
   padding: 0.25rem;
 }
 
-.admin-song-remove:hover {
+.admin-song-remove:hover, .team-remove:hover {
   color: #922b21;
 }
 
